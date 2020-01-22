@@ -1,15 +1,26 @@
-org: juniodev
+org: thorgus
 service: government
 plugins:
+  - serverless-domain-manager
   - serverless-python-requirements
   - serverless-wsgi
 custom:
+  stage: ${opt:stage, self:provider.stage}
   tableName: 'forms-table-${self:provider.stage}'
   wsgi:
-    app: app.app
+    app: wsgi.app
     packRequirements: false
   pythonRequirements:
     dockerizePip: non-linux
+  domains:
+    prod: government.fernandojr.dev
+    staging: staging.government.fernandojr.dev
+    dev: dev.government.fernandojr.dev
+  customDomain:
+    basePath: ''
+    domainName: ${self:custom.domains.${self:custom.stage}}
+    stage: '${self:custom.stage}'
+    createRoute53Record: true
 package:
   exclude:
     - node_modules/**
@@ -17,7 +28,6 @@ package:
 provider:
   name: aws
   runtime: python3.6
-  stage: dev
   region: us-east-1
   iamRoleStatements:
     - Effect: Allow
@@ -28,6 +38,7 @@ provider:
         - dynamodb:PutItem
         - dynamodb:UpdateItem
         - dynamodb:DeleteItem
+        - dynamodb:DescribeTable
       Resource:
         - { "Fn::GetAtt": ["FormsDynamoDBTable", "Arn" ] }
   environment:
@@ -38,6 +49,22 @@ functions:
     events:
       - http: ANY /
       - http: 'ANY {proxy+}'
+  getForm:
+    handler: wsgi_handler.handler
+    events:
+      - http: 'GET /forms/{proxy+}'
+  createForm:
+    handler: wsgi_handler.handler
+    events:
+      - http: 'POST /forms'
+  listForm:
+    handler: wsgi_handler.handler
+    events:
+      - http: 'GET /forms'
+  updateForm:
+    handler: wsgi_handler.handler
+    events:
+      - http: 'PUT /forms/{proxy+}'
 resources:
   Resources:
     FormsDynamoDBTable:
@@ -45,12 +72,17 @@ resources:
       Properties:
         AttributeDefinitions:
           -
-            AttributeName: formId
+            AttributeName: form_id
+            AttributeType: S
+          -
+            AttributeName: form_created_at
             AttributeType: S
         KeySchema:
           -
-            AttributeName: formId
+            AttributeName: form_id
             KeyType: HASH
+          - AttributeName: form_created_at
+            KeyType: RANGE
         ProvisionedThroughput:
           ReadCapacityUnits: 1
           WriteCapacityUnits: 1

@@ -1,6 +1,9 @@
-import os
 import boto3
+import logging
+import os
+import uuid
 
+from datetime import datetime
 from flask import Flask, render_template, jsonify, request
 app = Flask(__name__)
 
@@ -18,7 +21,7 @@ def get_form(form_id):
     resp = client.get_item(
         TableName=FORMS_TABLE,
         Key={
-            'formId': {'S': form_id}
+            'form_id': {'S': form_id}
         }
     )
     item = resp.get('Item')
@@ -26,29 +29,43 @@ def get_form(form_id):
         return jsonify({'error': 'Form does not exist'}), 200
 
     return jsonify({
-        'formId': item.get('formId').get('S'),
+        'form_id': item.get('form_id').get('S'),
         'name': item.get('name').get('S')
     })
 
 
 @app.route("/forms", methods=["POST"])
 def create_form():
-    form_id = request.json.get('formId')
-    name = request.json.get('name')
-    if not form_id or not name:
-        return jsonify({'error': 'Please provide formId and name'}), 400
+    form_id = str(uuid.uuid1())
+    created_at = datetime.now().isoformat()
+    attrs = request.json.get('attrs')
+    if not attrs:
+        logging.error('Validation Failed')
+        return jsonify({'error_message': 'Couldn\'t create the form item. There is no \'attrs\' attribute.'}), 422
 
     client.put_item(
         TableName=FORMS_TABLE,
         Item={
-            'formId': {'S': form_id},
-            'name': {'S': name}
+            'form_id': {'S': form_id},
+            'created_at': {'S': created_at},
+            'attrs': {'S': attrs},
         }
     )
 
     return jsonify({
-        'formId': form_id,
-        'name': name
+        'form_id': form_id,
+        'created_at': created_at,
+        'attrs': attrs,
+    }), 201
+
+
+@app.route("/forms")
+def list_forms():
+    resp = client.scan(TableName=FORMS_TABLE)
+
+    return jsonify({
+        'count': resp.get('Count').get('S'),
+        'items': resp.get('Items'),
     })
 
 
