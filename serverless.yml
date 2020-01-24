@@ -1,9 +1,23 @@
 org: thorgus
+
 service: government
+
 plugins:
   - serverless-domain-manager
   - serverless-python-requirements
   - serverless-wsgi
+
+package:
+  exclude:
+    - node_modules/**
+    - .idea/**
+    - .requirements/**
+    - venv/**
+    - README.md
+    - package.json
+    - package-lock.json
+    - requirements.txt
+
 custom:
   stage: ${opt:stage, self:provider.stage}
   tableName: 'forms-table-${self:custom.stage}'
@@ -21,10 +35,7 @@ custom:
     domainName: ${self:custom.domains.${self:custom.stage}}
     stage: '${self:custom.stage}'
     createRoute53Record: true
-package:
-  exclude:
-    - node_modules/**
-    - venv/**
+
 provider:
   name: aws
   runtime: python3.6
@@ -44,6 +55,7 @@ provider:
   environment:
     FORMS_TABLE: ${self:custom.tableName}
     STAGE: ${self:custom.stage}
+
 functions:
   app:
     handler: wsgi_handler.handler
@@ -70,6 +82,7 @@ functions:
     handler: wsgi_handler.handler
     events:
       - http: 'DELETE /forms/{proxy+}'
+
 resources:
   Resources:
     FormsDynamoDBTable:
