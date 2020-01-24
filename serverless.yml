@@ -6,9 +6,9 @@ plugins:
   - serverless-wsgi
 custom:
   stage: ${opt:stage, self:provider.stage}
-  tableName: 'forms-table-${self:provider.stage}'
+  tableName: 'forms-table-${self:custom.stage}'
   wsgi:
-    app: wsgi.app
+    app: application.app
     packRequirements: false
   pythonRequirements:
     dockerizePip: non-linux
@@ -43,6 +43,7 @@ provider:
         - { "Fn::GetAtt": ["FormsDynamoDBTable", "Arn" ] }
   environment:
     FORMS_TABLE: ${self:custom.tableName}
+    STAGE: ${self:custom.stage}
 functions:
   app:
     handler: wsgi_handler.handler
@@ -72,17 +73,12 @@ resources:
       Properties:
         AttributeDefinitions:
           -
-            AttributeName: form_id
-            AttributeType: S
-          -
-            AttributeName: form_created_at
+            AttributeName: id
             AttributeType: S
         KeySchema:
           -
-            AttributeName: form_id
+            AttributeName: id
             KeyType: HASH
-          - AttributeName: form_created_at
-            KeyType: RANGE
         ProvisionedThroughput:
           ReadCapacityUnits: 1
           WriteCapacityUnits: 1

@@ -1,13 +1,12 @@
 from flask import Flask
+from .config import configure_app
+from .bureaucracy.controllers import bureaucracy
 
+app = Flask(
+    __name__,
+    instance_relative_config=False
+)
 
-def create_app():
-    """Initialize the core application."""
-    app = Flask(__name__, instance_relative_config=False)
-    app.config.from_object('config.Config')
+configure_app(app)
 
-    with app.app_context():
-        # Register Blueprints
-        app.register_blueprint(bureaucracy.bp)
-
-        return app
+app.register_blueprint(bureaucracy, url_prefix="/forms")
