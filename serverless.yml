@@ -66,6 +66,10 @@ functions:
     handler: wsgi_handler.handler
     events:
       - http: 'PUT /forms/{proxy+}'
+  deleteForm:
+    handler: wsgi_handler.handler
+    events:
+      - http: 'DELETE /forms/{proxy+}'
 resources:
   Resources:
     FormsDynamoDBTable:
