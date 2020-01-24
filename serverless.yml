@@ -57,11 +57,6 @@ provider:
     STAGE: ${self:custom.stage}
 
 functions:
-  app:
-    handler: wsgi_handler.handler
-    events:
-      - http: ANY /
-      - http: 'ANY {proxy+}'
   getForm:
     handler: wsgi_handler.handler
     events:
