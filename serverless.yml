@@ -20,7 +20,7 @@ package:
 
 custom:
   stage: ${opt:stage, self:provider.stage}
-  tableName: 'forms-table-${self:custom.stage}'
+  tableName: "forms-table-${self:custom.stage}"
   wsgi:
     app: application.app
     packRequirements: false
@@ -31,9 +31,9 @@ custom:
     staging: staging.government.fernandojr.dev
     dev: dev.government.fernandojr.dev
   customDomain:
-    basePath: ''
+    basePath: ""
     domainName: ${self:custom.domains.${self:custom.stage}}
-    stage: '${self:custom.stage}'
+    stage: "${self:custom.stage}"
     createRoute53Record: true
 
 provider:
@@ -54,34 +54,68 @@ provider:
         - { "Fn::GetAtt": ["FormsDynamoDBTable", "Arn" ] }
   environment:
     FORMS_TABLE: ${self:custom.tableName}
-    STAGE: ${self:custom.stage}
 
 functions:
   getForm:
     handler: wsgi_handler.handler
     events:
-      - http: 'GET /forms/{proxy+}'
+      - http:
+          path: "/forms/{proxy+}"
+          method: get
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: !Ref ApiGatewayAuthorizer
+            scopes:
+              - government.${self:custom.stage}/form.read
   createForm:
     handler: wsgi_handler.handler
     events:
-      - http: 'POST /forms'
+      - http:
+          path: "/forms"
+          method: post
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: !Ref ApiGatewayAuthorizer
+            scopes:
+              - government.${self:custom.stage}/form.create
   listForm:
     handler: wsgi_handler.handler
     events:
-      - http: 'GET /forms'
+      - http:
+          path: "/forms"
+          method: get
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: !Ref ApiGatewayAuthorizer
+            scopes:
+              - government.${self:custom.stage}/form.read
   updateForm:
     handler: wsgi_handler.handler
     events:
-      - http: 'PUT /forms/{proxy+}'
+      - http:
+          path: "/forms/{proxy+}"
+          method: put
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: !Ref ApiGatewayAuthorizer
+            scopes:
+              - government.${self:custom.stage}/form.update
   deleteForm:
     handler: wsgi_handler.handler
     events:
-      - http: 'DELETE /forms/{proxy+}'
+      - http:
+          path: "/forms/{proxy+}"
+          method: delete
+          authorizer:
+            type: COGNITO_USER_POOLS
+            authorizerId: !Ref ApiGatewayAuthorizer
+            scopes:
+              - government.${self:custom.stage}/form.delete
 
 resources:
   Resources:
     FormsDynamoDBTable:
-      Type: 'AWS::DynamoDB::Table'
+      Type: "AWS::DynamoDB::Table"
       Properties:
         AttributeDefinitions:
           -
@@ -95,3 +129,18 @@ resources:
           ReadCapacityUnits: 1
           WriteCapacityUnits: 1
         TableName: ${self:custom.tableName}
+    CognitoUserPool:
+      Type: "AWS::Cognito::UserPool"
+      Properties:
+        UserPoolName: "government-user-${self:custom.stage}"
+    ApiGatewayAuthorizer:
+      DependsOn:
+        - ApiGatewayRestApi
+      Type: "AWS::ApiGateway::Authorizer"
+      Properties:
+        Name: cognito-${self:custom.stage}-authorizer
+        IdentitySource: method.request.header.Authorization
+        RestApiId: !Ref ApiGatewayRestApi
+        Type: COGNITO_USER_POOLS
+        ProviderARNs:
+          - Fn::GetAtt: [CognitoUserPool, Arn]
